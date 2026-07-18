@@ -12,6 +12,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write   # gh-pages branch par push karne ke liye zaroori
 
     steps:
       # 1) Code checkout
@@ -38,6 +40,9 @@ jobs:
         run: npx playwright test
         continue-on-error: true   # taake report upload ho sake chahe test fail ho
         id: playwright_tests
+        env:
+          ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
 
       # 6) Generate Allure report
       - name: Generate Allure report
@@ -62,13 +67,29 @@ jobs:
           path: allure-report/
           retention-days: 14
 
-      # 9) Fail the pipeline explicitly if tests failed (after reports are saved)
+      # 9) Publish Allure report to GitHub Pages (live shareable link)
+      - name: Prepare Pages deployment folder
+        if: always()
+        run: |
+          mkdir -p pages-deploy/runs/${{ github.run_number }}
+          cp -r allure-report/* pages-deploy/
+          cp -r allure-report/* pages-deploy/runs/${{ github.run_number }}/
+
+      - name: Deploy to GitHub Pages
+        if: always()
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: pages-deploy
+          keep_files: true
+
+      # 10) Fail the pipeline explicitly if tests failed (after reports are saved)
       - name: Check test result
         if: steps.playwright_tests.outcome == 'failure'
         run: exit 1
 
   deploy:
-    needs: test   # sirf tab chalega jab test job pass ho jaye
+    needs: test
     if: success()
     runs-on: ubuntu-latest
     steps:
