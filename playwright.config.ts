@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import { defineConfig, PlaywrightTestConfig } from '@playwright/test';
 
 const config: PlaywrightTestConfig = defineConfig({
